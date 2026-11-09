@@ -1,0 +1,48 @@
+name: Semgrep Local SAST
+
+on:
+  push:
+    branches: [ "main" ]
+
+  pull_request:
+    branches: [ "main" ]
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  semgrep:
+    name: Semgrep Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Repository checkout
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 2. Semgrep CLI 설치
+      # Semgrep Cloud 사용 안 함
+      - name: Install Semgrep
+        run: |
+          python -m pip install --upgrade pip
+          pip install semgrep
+
+      # 3. Repository 내부에 저장한 Rule로 분석
+      - name: Run Semgrep
+        run: |
+          semgrep scan \
+            --config=.semgrep/rules.yml \
+            --sarif \
+            --output=semgrep.sarif \
+            .
+
+      # 4. GitHub Code Scanning으로 결과 업로드
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep-local
